@@ -5,6 +5,7 @@ x = symbols("x")
 
 def proceso(funcionn):
     pasos = []
+
     def derivar(funcionn):
         if isinstance(funcionn, (int, Float, Integer, Number)) or funcionn == E or funcionn == pi:
             pasos.append({"tipo": "paso",
@@ -53,23 +54,23 @@ def proceso(funcionn):
                 return resul
         elif isinstance(funcionn, exp):
             pasos.append({"tipo": "inicio",
-                              "regla": "Regla de Euler",
-                              "explicacion": f"Como la base es E, se deja igual y se aplica regla de la cadena, derivando el exponente y multiplicandolo",
-                              "original": latex(funcionn)})
+                          "regla": "Regla de Euler",
+                          "explicacion": f"Como la base es E, se deja igual y se aplica regla de la cadena, derivando el exponente y multiplicandolo",
+                          "original": latex(funcionn)})
             resul = derivar_euler(funcionn)
             pasos.append({"tipo": "fin",
                           "derivada": latex(resul)})
             return resul
-        elif isinstance (funcionn, Add):
+        elif isinstance(funcionn, Add):
             pasos.append({"tipo": "inicio",
-                              "regla": "Regla de la suma",
-                              "explicacion": f"Se derivan todos los termino y se operan si es el caso",
-                              "original": latex(funcionn)})
+                          "regla": "Regla de la suma",
+                          "explicacion": f"Se derivan todos los termino y se operan si es el caso",
+                          "original": latex(funcionn)})
             resul = derivar_suma(funcionn)
             pasos.append({"tipo": "fin",
                           "derivada": latex(resul)})
             return resul
-        elif isinstance (funcionn, Mul):
+        elif isinstance(funcionn, Mul):
             numerador, denominador = funcionn.as_numer_denom()
             if denominador != 1:
                 pasos.append({"tipo": "inicio",
@@ -89,11 +90,11 @@ def proceso(funcionn):
                 pasos.append({"tipo": "fin",
                               "derivada": latex(resul)})
                 return resul
-        elif isinstance (funcionn, log):
+        elif isinstance(funcionn, log):
             return derivar_logaritmo(funcionn)
-        elif isinstance (funcionn, TrigonometricFunction):
+        elif isinstance(funcionn, TrigonometricFunction):
             return derivar_trigonometrica(funcionn)
-        elif isinstance (funcionn, InverseTrigonometricFunction):
+        elif isinstance(funcionn, InverseTrigonometricFunction):
             return derivar_arco_trigonometrica(funcionn)
 
     def derivar_potencia(potencia):
@@ -115,7 +116,6 @@ def proceso(funcionn):
                     resultado.append(base**exponente)
                 else:
                     return Mul(*resultado)
-
 
     def derivar_euler(potencia_euler):
         argumento = list(potencia_euler.args)
@@ -151,27 +151,30 @@ def proceso(funcionn):
         derecho = numerador * derivada_denominador
         return (izquierdo-derecho)/denominador**2
 
-
     def derivar_logaritmo(logaritmo):
         argumento = list(logaritmo.args)
         exponente = argumento[0]
         cadena = derivar(exponente)
-        if not(isinstance(exponente, (Integer, int, Float))):
+        if not isinstance(exponente, (Integer, int, Float)):
             resultado = (1/exponente)*cadena
             return resultado
         else:
             return 0
 
-
     def derivar_trigonometrica(funcion):
+        pasos.append({"tipo": "inicio",
+                      "regla": "Regla de función trigonométrica",
+                      "explicacion": f"Se deriva la función trigonométrica {latex(funcion)} aplicando la regla correspondiente y multiplicando por la derivada interna (regla de la cadena)",
+                      "original": latex(funcion)})
         argumento = list(funcion.args)
         interno = argumento[0]
         cadena = derivar(interno)
         tipo = type(funcion)
+
         def derivar_seno(seno):
             return cos(interno) * cadena
         def derivar_coseno(coseno):
-            return -sin(interno)* cadena
+            return -sin(interno) * cadena
         def derivar_tangente(tangente):
             return (sec(interno))**2 * cadena
         def derivar_secante(secante):
@@ -180,54 +183,71 @@ def proceso(funcionn):
             return -csc(interno)*cot(interno)*cadena
         def derivar_cotangente(cotangente):
             return -(csc(interno)**2)*cadena
+
+        resul = 0
         if tipo == sin:
-            return derivar_seno(interno)
+            resul = derivar_seno(interno)
         elif tipo == cos:
-            return derivar_coseno(interno)
+            resul = derivar_coseno(interno)
         elif tipo == tan:
-            return derivar_tangente(interno)
+            resul = derivar_tangente(interno)
         elif tipo == sec:
-            return derivar_secante(interno)
+            resul = derivar_secante(interno)
         elif tipo == csc:
-            return derivar_cosecante(interno)
+            resul = derivar_cosecante(interno)
         elif tipo == cot:
-            return derivar_cotangente(interno)
+            resul = derivar_cotangente(interno)
+
+        pasos.append({"tipo": "fin",
+                      "derivada": latex(resul)})
+        return resul
 
     def derivar_arco_trigonometrica(funcion):
+        pasos.append({"tipo": "inicio",
+                      "regla": "Regla de función arcotrigonométrica",
+                      "explicacion": f"Se deriva la función arcotrigonométrica {latex(funcion)} aplicando la regla correspondiente y multiplicando por la derivada interna (regla de la cadena)",
+                      "original": latex(funcion)})
         argumento = list(funcion.args)
         interno = argumento[0]
         cadena = derivar(interno)
         tipo = type(funcion)
+
         def derivar_arcoseno():
             multiplicador = 1/((1-interno**2)**(1/2))
             return multiplicador * cadena
         def derivar_arcocoseno():
             multiplicador = -(1/((1-interno**2)**(1/2)))
-            return multiplicador* cadena
+            return multiplicador * cadena
         def derivar_arcotangente():
             multiplicador = 1/(1+interno**2)
-            return multiplicador*cadena
+            return multiplicador * cadena
         def derivar_arcosecante():
             multiplicador = 1/(abs(interno)*(((interno**2)-1)**(1/2)))
-            return multiplicador*cadena
+            return multiplicador * cadena
         def derivar_arcocosecante():
             multiplicador = -(1/(abs(interno)*(((interno**2)-1)**(1/2))))
-            return multiplicador*cadena
+            return multiplicador * cadena
         def derivar_arcocotangente():
             multiplicador = -(1/(1+interno**2))
-            return multiplicador*cadena
+            return multiplicador * cadena
+
+        resul = 0
         if tipo == asin:
-            return derivar_arcoseno()
+            resul = derivar_arcoseno()
         elif tipo == acos:
-            return derivar_arcocoseno()
+            resul = derivar_arcocoseno()
         elif tipo == atan:
-            return derivar_arcotangente()
+            resul = derivar_arcotangente()
         elif tipo == asec:
-            return derivar_arcosecante()
+            resul = derivar_arcosecante()
         elif tipo == acsc:
-            return derivar_arcocosecante()
+            resul = derivar_arcocosecante()
         elif tipo == acot:
-            return derivar_arcocotangente()
+            resul = derivar_arcocotangente()
+
+        pasos.append({"tipo": "fin",
+                      "derivada": latex(resul)})
+        return resul
 
     resultado = derivar(funcionn)
     return resultado, pasos
@@ -238,4 +258,3 @@ def recta_tangente(funcion, punto_en_x):
     punto_en_y = funcion.subs(x, punto_en_x).evalf()
     b = punto_en_y-(pendiente*punto_en_x)
     return pendiente*x + b
-
