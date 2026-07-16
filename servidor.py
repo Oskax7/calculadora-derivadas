@@ -3,15 +3,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import sympy as sp
 
-# Importamos las herramientas de SymPy para entender el "2x" sin asterisco
+# Importamos las herramientas de SymPy
 from sympy.parsing.sympy_parser import (
     parse_expr,
     standard_transformations,
     implicit_multiplication_application
 )
 
-# 1. Importamos TUS funciones desde tu archivo calculadora.py
-# (Asegúrate de que calculadora.py esté en la misma carpeta que este archivo)
+# Tus funciones locales
 from calculadora import proceso, recta_tangente
 
 app = FastAPI()
@@ -31,32 +30,29 @@ class PeticionCalculadora(BaseModel):
 @app.post("/conectar")
 async def calcular_derivada_y_tangente(req: PeticionCalculadora):
     try:
-        # --- AQUÍ ESTÁ EL CAMBIO CLAVE ---
-        # Configuramos SymPy para que entienda multiplicaciones implícitas (ej: "2x" -> "2*x")
         transformaciones = standard_transformations + (implicit_multiplication_application,)
 
-        # Convertimos el string que llega de JS a una expresión matemática de SymPy
+        # 1. Convertimos el string a SymPy
         f_x = parse_expr(req.ecuacion, transformations=transformaciones)
-        # ---------------------------------
 
-        # 2. Usamos TU función para derivar y obtener los pasos
-        # Asumiendo que retorna dos valores: la derivada y el JSON/diccionario de los pasos
+        # FIX: Forzamos que la función sea estrictamente de SymPy (evita el error 'int has no attribute')
+        f_x = sp.sympify(f_x)
+
+        # 2. Derivamos con tu función
         f_prima, pasos_json = proceso(f_x)
 
-        # 3. Usamos TU función para la recta tangente
-        # Le pasamos la función original de sympy y el punto que llegó del frontend
-        recta_tang = recta_tangente(f_x, req.punto_x)
+        # FIX: Forzamos la derivada a SymPy (Si proceso() devuelve un '0' o '1' nativo, esto lo repara)
+        f_prima = sp.sympify(f_prima)
 
-        # 4. Convertimos los resultados a formato LaTeX para que se vean bien en el HTML
-        derivada_latex = sp.latex(f_prima)
-        tangente_latex = sp.latex(recta_tang)
+        # 3. Recta tangente
+        recta_tang = recta_tangente(f_x, req.punto_x)
 
         return {
             "status": "success",
-            "resultado": derivada_latex,        # Derivada general en LaTeX
-            "tangente": tangente_latex,         # Recta tangente en LaTeX
-            "punto_evaluado": req.punto_x,      # Punto x utilizado
-            "pasos": pasos_json                 # ¡Aquí enviamos tus pasos al frontend!
+            "resultado": sp.latex(f_prima),
+            "tangente": sp.latex(recta_tang),
+            "punto_evaluado": req.punto_x,
+            "pasos": pasos_json
         }
 
     except Exception as e:
