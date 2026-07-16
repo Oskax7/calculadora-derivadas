@@ -267,7 +267,7 @@ async function enviarAPython() {
     try {
         mostrarResultadoEnCelda("Calculando derivada...");
 
-        const respuesta = await fetch('http://127.0.0.1:8000/conectar', {
+        const respuesta = await fetch('https://calculadorad-derivadas.onrender.com/conectar',  {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
