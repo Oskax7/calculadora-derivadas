@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Derivadas Pro</title>
+
+    <!-- MathJax para renderizado matemático -->
+    <script>
+        window.MathJax = {
+            loader: { load: ['[tex]/html'] },
+            tex: { packages: {'[+]': ['html']}, inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <!-- Librerías para Gráficas, Gestos y Matemáticas Locales -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+
+    <style>
+        :root { --bg-panel: #1e2022; --color-primary: #00d2d3; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background-color: #bfbfbf; display: flex; justify-content: center;
+            min-height: 100vh; padding: 20px; margin: 0; overflow-x: hidden;
+        }
+
+        /* DISEÑO DE COLUMNAS (Deslizamiento Izquierda - Derecha) */
+        #app-layout {
+            display: flex; gap: 20px; width: 100%; max-width: 1100px;
+            justify-content: center; transition: all 0.4s ease;
+        }
+        #col-izquierda { width: 100%; max-width: 550px; transition: all 0.4s ease; display: flex; flex-direction: column; align-items: center; }
+        #col-derecha {
+            width: 0; opacity: 0; overflow: hidden; transition: all 0.4s ease;
+            background: #17181b; border-radius: 12px; box-shadow: 0px 4px 20px rgba(0,0,0,0.3);
+            display: flex; flex-direction: column;
+        }
+        #col-derecha.abierto { width: 100%; max-width: 450px; opacity: 1; padding: 20px; }
+
+        /* CONTENEDOR DEL TECLADO Y PANTALLA */
+        .teclado-container { width: 100%; background-color: #d4d4d4; border-radius: 12px; box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.2); padding-bottom: 15px; user-select: none; z-index: 10; }
+        #pantalla { background-color: #1e2022; color: #ffffff; min-height: 80px; margin: 15px; padding: 15px 20px; border-radius: 12px; font-size: 28px; display: flex; align-items: center; overflow-x: auto; white-space: nowrap; outline: none;}
+        #pantalla:focus { border-color: #00d2d3; box-shadow: 0 0 0 2px rgba(0,210,211,0.3); }
+        .cursor-latex { animation: parpadeo 1s step-end infinite; color: #00d2d3 !important; font-weight: bold; }
+        @keyframes parpadeo { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        #pantalla:not(:focus) .cursor-latex { display: none; }
+
+        /* PESTAÑAS Y TECLADOS */
+        .pestanas { display: flex; padding: 5px 15px 10px 15px; gap: 10px; font-size: 15px; }
+        .pestana { cursor: pointer; padding: 8px 14px; border-radius: 20px; color: #5f6368; font-weight: bold; transition: 0.2s; }
+        .pestana.activa { background-color: #e8eaed; color: #202124; }
+        .teclado-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; padding: 0 15px; }
+        button { background-color: #ffffff; border: none; border-radius: 8px; height: 42px; font-size: 17px; color: #202124; cursor: pointer; font-weight: 500; transition: 0.1s; box-shadow: 0px 1px 3px rgba(0,0,0,0.1);}
+        button:active { transform: scale(0.92); }
+        .btn-variable { font-style: italic; font-family: serif; font-size: 20px; color: #4b0082;}
+        .btn-funcion { background-color: #dadce0; color: #3c4043; font-size: 14px; font-weight: bold;}
+        .btn-accion { background-color: #f1f3f4; font-weight: bold; }
+        #btn-enter { background-color: #00d2d3; color: #1e2022; font-weight: bold; }
+        .btn-pasos { background-color: #feca57; color: #1e2022; font-weight: bold; }
+        .btn-peligro { background-color: #ff6b6b; color: white; }
+        .btn-del { background-color: #ee5253; color: white; font-size: 22px; }
+
+        /* RESULTADOS (Cajas compactas e independientes) */
+        .caja-resultado {
+            display: none; margin: 15px 0 0 0; width: 100%; border-radius: 10px;
+            background: linear-gradient(145deg, #1e2530, #283142); color: #00d2d3;
+            border-left: 4px solid #00d2d3; padding: 12px 20px; box-sizing: border-box; font-size: 18px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); text-align: center;
+        }
+
+        /* SECCIÓN INFERIOR Y GRÁFICA */
+        .seccion-inferior { width: 100%; margin-top: 15px; display: flex; flex-direction: column; gap: 15px; }
+        .panel-control { display: flex; align-items: center; justify-content: space-between; background-color: #25282a; padding: 10px 15px; border-radius: 10px; color: #fff; gap: 12px; box-shadow: 0px 4px 10px rgba(0,0,0,0.2); }
+        .panel-control label { font-size: 14px; font-weight: bold; color: #a4b0be; }
+        .panel-control input[type="text"] { width: 55px; background: #1e2022; border: 1px solid #00d2d3; color: #00d2d3; border-radius: 5px; padding: 5px; text-align: center; font-weight: bold; outline: none; }
+        .panel-control input[type="range"] { flex-grow: 1; cursor: pointer; accent-color: #00d2d3; }
+
+        #zona-grafica-container { display: none; background: #1e2022; padding: 15px; border-radius: 12px; box-shadow: 0px 4px 10px rgba(0,0,0,0.2);}
+        .canvas-wrapper { width: 100%; height: 250px; background: #ffffff; border-radius: 8px; padding: 5px; box-sizing: border-box;}
+        .instruccion-grafica { text-align: center; color: #a4b0be; font-size: 12px; margin-top: 8px; font-weight: bold; }
+
+        /* ESTILOS DE LOS PASOS PASO A PASO (DISEÑO MEJORADO) */
+        .titulo-panel { color: #fff; text-align: center; font-size: 20px; margin: 0 0 15px 0; border-bottom: 2px solid #3c4043; padding-bottom: 10px;}
+        .contenido-pasos { overflow-y: auto; flex-grow: 1; padding-right: 5px; }
+
+        .paso-card { background: #25282a; border-left: 4px solid #feca57; margin-bottom: 15px; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .paso-titulo { color: #feca57; font-size: 14px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+        .paso-separador-card { border: 0; border-top: 1px solid #3c4043; margin: 8px 0; }
+        .paso-ecuacion { color: #ffffff; font-size: 18px; text-align: center; overflow-x: auto; padding: 5px 0; }
+
+        /* Botón inferior para pasos de tangente */
+        .btn-tangente-pasos { background: #17181b; color: #a4b0be; border: 1px solid #3c4043; width: 100%; margin-top: 10px; border-radius: 8px; padding: 10px; cursor: pointer; transition: 0.2s; font-weight: bold; }
+        .btn-tangente-pasos:hover { background: #282c34; color: #00d2d3; border-color: #00d2d3; }
+        #pasos-tangente-container { display: none; background: #1e2022; border-radius: 10px; padding: 15px; margin-top: 10px; border: 1px solid #3c4043; }
+
+        /* SCROLLBAR CUSTOM */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #5f6368; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <div id="app-layout">
+        <!-- COLUMNA IZQUIERDA (Calculadora Principal) -->
+        <div id="col-izquierda">
+            <div class="teclado-container">
+                <div id="pantalla" tabindex="0"></div>
+
+                <div class="pestanas">
+                    <div class="pestana activa" onclick="cambiarPestana(this, 'teclado-base')">Básico</div>
+                    <div class="pestana" onclick="cambiarPestana(this, 'teclado-trig')">Avanzado</div>
+                </div>
+
+                <div id="teclado-base" class="teclado-grid">
+                    <button class="btn-variable" onclick="insertarTexto('x')">x</button>
+                    <button class="btn-variable" onclick="insertarTexto('y')">y</button>
+                    <button class="btn-accion" onclick="insertarTexto('(')">(</button>
+                    <button class="btn-accion" onclick="insertarTexto(')')">)</button>
+                    <button class="btn-accion btn-peligro" onclick="borrarTodo()" style="grid-column: span 2;">AC</button>
+                    <button class="btn-accion btn-del" onclick="ejecutarBorrado()">⌫</button>
+
+                    <button class="btn-variable" onclick="insertarTexto('e')">e</button>
+                    <button class="btn-variable" onclick="insertarTexto('pi')">π</button>
+                    <button class="btn-accion" onclick="insertarEstructura('potencia2')">x²</button>
+                    <button class="btn-accion" onclick="insertarEstructura('potencia')">xⁿ</button>
+                    <button onclick="insertarTexto('7')">7</button>
+                    <button onclick="insertarTexto('8')">8</button>
+                    <button onclick="insertarTexto('9')">9</button>
+
+                    <button class="btn-accion" onclick="insertarEstructura('raiz')">√</button>
+                    <button class="btn-accion" onclick="insertarEstructura('raizn')">ⁿ√</button>
+                    <button class="btn-accion" onclick="insertarTexto('+')">+</button>
+                    <button class="btn-accion" onclick="insertarTexto('-')">-</button>
+                    <button onclick="insertarTexto('4')">4</button>
+                    <button onclick="insertarTexto('5')">5</button>
+                    <button onclick="insertarTexto('6')">6</button>
+
+                    <button class="btn-accion" onclick="moverCursor('izq')">←</button>
+                    <button class="btn-accion" onclick="moverCursor('der')">→</button>
+                    <button class="btn-accion" onclick="insertarTexto('*')">*</button>
+                    <button class="btn-accion" onclick="insertarEstructura('fraccion')">÷</button>
+                    <button onclick="insertarTexto('1')">1</button>
+                    <button onclick="insertarTexto('2')">2</button>
+                    <button onclick="insertarTexto('3')">3</button>
+
+                    <button class="btn-pasos" onclick="togglePasos()" style="grid-column: span 2;">Pasos</button>
+                    <button id="btn-enter" onclick="enviarAPython()" style="grid-column: span 2;">Resolver</button>
+                    <button onclick="insertarTexto('0')" style="grid-column: span 2;">0</button>
+                    <button onclick="insertarTexto('.')">.</button>
+                </div>
+
+                <div id="teclado-trig" class="teclado-grid" style="display: none;">
+                    <button class="btn-funcion" onclick="insertarTexto('sin(')">sin</button>
+                    <button class="btn-funcion" onclick="insertarTexto('cos(')">cos</button>
+                    <button class="btn-funcion" onclick="insertarTexto('tan(')">tan</button>
+                    <button class="btn-accion" onclick="insertarTexto('(')">(</button>
+                    <button class="btn-accion btn-peligro" onclick="borrarTodo()" style="grid-column: span 2;">AC</button>
+                    <button class="btn-accion btn-del" onclick="ejecutarBorrado()">⌫</button>
+
+                    <button class="btn-funcion" onclick="insertarTexto('sec(')">sec</button>
+                    <button class="btn-funcion" onclick="insertarTexto('csc(')">csc</button>
+                    <button class="btn-funcion" onclick="insertarTexto('cot(')">cot</button>
+                    <button class="btn-accion" onclick="insertarTexto(')')">)</button>
+                    <button onclick="insertarTexto('7')">7</button>
+                    <button onclick="insertarTexto('8')">8</button>
+                    <button onclick="insertarTexto('9')">9</button>
+
+                    <button class="btn-funcion" onclick="insertarTexto('asin(')">sin⁻¹</button>
+                    <button class="btn-funcion" onclick="insertarTexto('acos(')">cos⁻¹</button>
+                    <button class="btn-funcion" onclick="insertarTexto('atan(')">tan⁻¹</button>
+                    <button class="btn-variable" onclick="insertarTexto('pi')">π</button>
+                    <button onclick="insertarTexto('4')">4</button>
+                    <button onclick="insertarTexto('5')">5</button>
+                    <button onclick="insertarTexto('6')">6</button>
+
+                    <button class="btn-funcion" onclick="insertarTexto('ln(')">ln</button>
+                    <button class="btn-funcion" onclick="insertarLogBase()">log<sub>b</sub></button>
+                    <button class="btn-accion" onclick="moverCursor('izq')">←</button>
+                    <button class="btn-accion" onclick="moverCursor('der')">→</button>
+                    <button onclick="insertarTexto('1')">1</button>
+                    <button onclick="insertarTexto('2')">2</button>
+                    <button onclick="insertarTexto('3')">3</button>
+
+                    <button class="btn-pasos" onclick="togglePasos()" style="grid-column: span 2;">Pasos</button>
+                    <button id="btn-enter" onclick="enviarAPython()" style="grid-column: span 2;">Resolver</button>
+                    <button class="btn-variable" onclick="insertarTexto('x')">x</button>
+                    <button onclick="insertarTexto('0')">0</button>
+                    <button onclick="insertarTexto('.')">.</button>
+                </div>
+            </div>
+
+            <!-- RESULTADO PRINCIPAL -->
+            <div id="caja-resultado-principal" class="caja-resultado"></div>
+
+            <div class="seccion-inferior">
+                <!-- PANEL TANGENTE -->
+                <div class="panel-control">
+                    <label>Tangente en \(x=\)</label>
+                    <input type="text" id="input-punto" value="1" onchange="actualizarDesdeInput(); enviarAPython()">
+                    <input type="range" id="slider-punto" min="-9" max="11" step="0.1" value="1"
+                           oninput="actualizarSliderEnTiempoReal()" onchange="enviarAPython()">
+                </div>
+
+                <!-- RESULTADO DE LA TANGENTE -->
+                <div id="caja-resultado-tangente" class="caja-resultado" style="border-left-color: #ee5253; background: #1a1c20;"></div>
+
+                <!-- GRÁFICA -->
+                <div id="zona-grafica-container">
+                    <div class="canvas-wrapper"><canvas id="grafica-canvas"></canvas></div>
+                    <div class="instruccion-grafica">🖱️ Usa la rueda para hacer zoom • Clic y arrastra para moverte</div>
+
+                    <button class="btn-tangente-pasos" onclick="togglePasosTangente()">Ver pasos de la Recta Tangente ▼</button>
+                    <div id="pasos-tangente-container"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUMNA DERECHA (Panel de Pasos Derivada) -->
+        <div id="col-derecha">
+            <h3 class="titulo-panel">Solución Paso a Paso</h3>
+            <div id="contenido-pasos-derivada" class="contenido-pasos">
+                <div style="color:#a4b0be; text-align:center; margin-top:20px;">Presiona "Resolver" para calcular.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const pantalla = document.getElementById('pantalla');
+        let datos = []; let rutaCursor = [0];
+
+        let lastEcuacionPython = "";
+        let panelPasosAbierto = false;
+
+        document.addEventListener('keydown', function(e) {
+            if(e.target.tagName === 'INPUT') return;
+            if (e.key === 'ArrowLeft') { e.preventDefault(); moverCursor('izq'); }
+            else if (e.key === 'ArrowRight') { e.preventDefault(); moverCursor('der'); }
+            else if (e.key === 'Backspace') { e.preventDefault(); ejecutarBorrado(); }
+            else if (e.key === 'Enter') { e.preventDefault(); enviarAPython(); }
+            else if (e.key === 'Delete') { e.preventDefault(); borrarTodo(); }
+            else if (/^[0-9xye\.\+\-\*\/\(\)]$/.test(e.key) && e.key.length === 1) {
+                e.preventDefault();
+                if(e.key === '/') insertarEstructura('fraccion');
+                else insertarTexto(e.key);
+            }
+        });
+
+        // ======= INTERFAZ Y PANELES =======
+        function togglePasos() {
+            panelPasosAbierto = !panelPasosAbierto;
+            const panel = document.getElementById('col-derecha');
+            if(panelPasosAbierto) { panel.classList.add('abierto'); enviarAPython(); }
+            else { panel.classList.remove('abierto'); }
+        }
+
+        function togglePasosTangente() {
+            const cont = document.getElementById('pasos-tangente-container');
+            if (cont.style.display === 'block') { cont.style.display = 'none'; }
+            else { cont.style.display = 'block'; }
+        }
+
+        // ======= LÓGICA DEL SLIDER EN TIEMPO REAL =======
+        function actualizarDesdeInput() {
+            const input = document.getElementById('input-punto');
+            const slider = document.getElementById('slider-punto');
+            try { let val = math.evaluate(input.value); if (!isNaN(val)) { slider.min = val - 10; slider.max = val + 10; slider.value = val; } } catch(e) {}
+        }
+        function actualizarSliderEnTiempoReal() {
+            const input = document.getElementById('input-punto');
+            const slider = document.getElementById('slider-punto');
+            let val = parseFloat(parseFloat(slider.value).toFixed(2));
+            input.value = val;
+
+            if (window.miGrafico && lastEcuacionPython) {
+                let exprMathJS = lastEcuacionPython.replace(/\*\*/g, '^');
+                let contexto = { e: Math.E, pi: Math.PI };
+                let h = 0.0001;
+                try {
+                    let y0 = math.evaluate(exprMathJS, { ...contexto, x: val });
+                    let y_plus = math.evaluate(exprMathJS, { ...contexto, x: val + h });
+                    let y_minus = math.evaluate(exprMathJS, { ...contexto, x: val - h });
+                    let m = (y_plus - y_minus) / (2 * h);
+
+                    let yTangente = [];
+                    let xLabels = window.miGrafico.data.labels;
+                    for(let i=0; i < xLabels.length; i++) {
+                        let px = parseFloat(xLabels[i]);
+                        yTangente.push(m * (px - val) + y0);
+                    }
+                    window.miGrafico.data.datasets[1].data = yTangente;
+                    window.miGrafico.update('none');
+                } catch(e) {}
+            }
+        }
+
+        // ======= TECLADO Y RENDERIZADO (Sin cambios) =======
+        function renderizarEstructura(arbol, rutaBase = [], paraServidor = false) {
+            let latex = "";
+            const showCursorHere = !paraServidor && JSON.stringify([...rutaBase, arbol.length]) === JSON.stringify(rutaCursor);
+            const cursorLatex = "\\class{cursor-latex}{\\mathord{|}}";
+
+            for (let i = 0; i <= arbol.length; i++) {
+                if (showCursorHere && i === arbol.length) latex += cursorLatex;
+                if (i === arbol.length) break;
+
+                let nodo = arbol[i];
+                let rutaNodo = [...rutaBase, i];
+                if (!paraServidor && JSON.stringify(rutaNodo) === JSON.stringify(rutaCursor)) latex += cursorLatex;
+
+                if (nodo.tipo === 'texto') {
+                    let val = nodo.valor.replace(/#/g, '');
+                    let limpio = val.replace(/\\(pi|e|sin|cos|tan|asin|acos|atan|ln|sec|csc|cot)/g, match => match.substring(1));
+                    if (paraServidor) { if (val === 'ln(') latex += 'log('; else latex += limpio; }
+                    else {
+                        const m = {'pi': '\\pi', 'e': '\\mathrm{e}', 'ln(': '\\ln(', 'sin(': '\\sin(', 'cos(': '\\cos(', 'tan(': '\\tan(', 'sec(': '\\sec(', 'csc(': '\\csc(', 'cot(': '\\cot(', 'asin(': '\\arcsin(', 'acos(': '\\arccos(', 'atan(': '\\arctan('};
+                        latex += m[val] || val;
+                    }
+                } else if (nodo.tipo === 'raiz') { let c = renderizarEstructura(nodo.hijos[0]||[], [...rutaNodo, 0], paraServidor); latex += paraServidor ? `sqrt(${c||'0'})` : `\\sqrt{${c||"\\,"}}`;
+                } else if (nodo.tipo === 'raizn') { let ind = renderizarEstructura(nodo.hijos[0]||[], [...rutaNodo, 0], paraServidor); let c = renderizarEstructura(nodo.hijos[1]||[], [...rutaNodo, 1], paraServidor); latex += paraServidor ? `(${c||'0'})**(1/(${ind||'2'}))` : `\\sqrt[${ind||"\\,"}]{${c||"\\,"}}`;
+                } else if (nodo.tipo === 'fraccion') { let n = renderizarEstructura(nodo.hijos[0]||[], [...rutaNodo, 0], paraServidor); let d = renderizarEstructura(nodo.hijos[1]||[], [...rutaNodo, 1], paraServidor); latex += paraServidor ? `(${n||'0'})/(${d||'1'})` : `\\frac{${n||"\\,"}}{${d||"\\,"}}`;
+                } else if (nodo.tipo === 'potencia') { let exp = renderizarEstructura(nodo.hijos[0]||[], [...rutaNodo, 0], paraServidor); latex += paraServidor ? `**(${exp||'1'})` : `^{${exp||"\\,"}}`;
+                } else if (nodo.tipo === 'logbase') { let base = renderizarEstructura(nodo.hijos[0]||[], [...rutaNodo, 0], paraServidor); let arg = renderizarEstructura(nodo.hijos[1]||[], [...rutaNodo, 1], paraServidor); latex += paraServidor ? `log(${arg||'x'}, ${base||'10'})` : `\\log_{${base||"\\,"}}{(${arg||"\\,"})}`; }
+            }
+            return latex;
+        }
+
+        function actualizarPantalla() {
+            try {
+                const currentFocus = document.activeElement === pantalla;
+                const buffer = document.createElement('div'); buffer.innerHTML = `\\[ ${renderizarEstructura(datos) || "\\\\, "} \\]`;
+                if (window.MathJax) { MathJax.typesetPromise([buffer]).then(() => { pantalla.innerHTML = buffer.innerHTML; if (currentFocus) pantalla.focus(); });
+                } else { pantalla.innerHTML = buffer.innerHTML; }
+            } catch (e) {}
+        }
+
+        function insertarTexto(val) { pantalla.focus(); obtenerContenedorPorRuta(datos, rutaCursor).splice(rutaCursor[rutaCursor.length-1]++, 0, {tipo:'texto', valor:val}); actualizarPantalla(); }
+        function insertarEstructura(tipo) { pantalla.focus(); let lista = obtenerContenedorPorRuta(datos, rutaCursor); let idx = rutaCursor[rutaCursor.length-1]; if (tipo === 'potencia') { lista.splice(idx, 0, {tipo:'potencia', hijos:[[]]}); rutaCursor.push(0, 0); } else if (tipo === 'potencia2') { lista.splice(idx, 0, {tipo:'potencia', hijos:[[{tipo:'texto', valor:'2'}]]}); rutaCursor[rutaCursor.length-1]++; } else if (tipo === 'fraccion' || tipo === 'raizn') { lista.splice(idx, 0, {tipo: tipo, hijos:[[], []]}); rutaCursor.push(0, 0); } else if (tipo === 'raiz') { lista.splice(idx, 0, {tipo: 'raiz', hijos:[[]]}); rutaCursor.push(0, 0); } actualizarPantalla(); }
+        function insertarLogBase() { let pos = obtenerPosicionActual(rutaCursor, datos); pos.array.splice(pos.idx, 0, { tipo: 'logbase', hijos: [[], []] }); rutaCursor[rutaCursor.length - 1] = pos.idx; rutaCursor.push(0, 0); actualizarPantalla(); }
+        function obtenerPosicionActual(ruta, arbolActual) { let actual = arbolActual; let padre = null; let hijoIdx = -1; for (let i = 0; i < ruta.length - 1; i += 2) { padre = actual[ruta[i]]; hijoIdx = ruta[i+1]; actual = padre.hijos[hijoIdx]; } return { array: actual, idx: ruta[ruta.length - 1], padre: padre, hijoIdx: hijoIdx }; }
+        function moverCursor(direccion) { let pos = obtenerPosicionActual(rutaCursor, datos); if (direccion === 'der') { if (pos.idx < pos.array.length && pos.array[pos.idx].tipo !== 'texto') { rutaCursor[rutaCursor.length - 1] = pos.idx; rutaCursor.push(0, 0); } else if (pos.idx === pos.array.length && rutaCursor.length > 1) { if (pos.hijoIdx < pos.padre.hijos.length - 1) { rutaCursor[rutaCursor.length - 2] = pos.hijoIdx + 1; rutaCursor[rutaCursor.length - 1] = 0; } else { rutaCursor.pop(); rutaCursor.pop(); rutaCursor[rutaCursor.length - 1]++; } } else if (pos.idx < pos.array.length) { rutaCursor[rutaCursor.length - 1]++; } } else if (direccion === 'izq') { if (pos.idx === 0 && rutaCursor.length > 1) { if (pos.hijoIdx > 0) { rutaCursor[rutaCursor.length - 2] = pos.hijoIdx - 1; let subArbolPrevio = pos.padre.hijos[pos.hijoIdx - 1] || []; rutaCursor[rutaCursor.length - 1] = subArbolPrevio.length; } else { rutaCursor.pop(); rutaCursor.pop(); } } else if (pos.idx > 0 && pos.array[pos.idx - 1].tipo !== 'texto') { let nodoEstructural = pos.array[pos.idx - 1]; let ultimoHijoIdx = nodoEstructural.hijos.length - 1; let ultimoHijoArray = nodoEstructural.hijos[ultimoHijoIdx] || []; rutaCursor[rutaCursor.length - 1] = pos.idx - 1; rutaCursor.push(ultimoHijoIdx, ultimoHijoArray.length); } else if (pos.idx > 0) { rutaCursor[rutaCursor.length - 1]--; } } actualizarPantalla(); }
+        function ejecutarBorrado() { pantalla.focus(); let lista = obtenerContenedorPorRuta(datos, rutaCursor); let idx = rutaCursor[rutaCursor.length - 1]; if (idx > 0) { lista.splice(idx - 1, 1); rutaCursor[rutaCursor.length - 1]--; } else if (rutaCursor.length > 1) { let parentRuta = rutaCursor.slice(0, rutaCursor.length - 2); let parentLista = obtenerContenedorPorRuta(datos, parentRuta); let parentIdx = rutaCursor[rutaCursor.length - 2]; if (parentLista[parentIdx] && parentLista[parentIdx].hijos[rutaCursor[rutaCursor.length-2]].length === 0) { parentLista.splice(parentIdx, 1); rutaCursor = parentRuta; rutaCursor[rutaCursor.length - 1] = parentIdx; } else { moverCursor('izq'); } } actualizarPantalla(); }
+        function borrarTodo() { pantalla.focus(); datos = []; rutaCursor = [0]; actualizarPantalla(); }
+        function obtenerContenedorPorRuta(arbol, ruta) { let temp = arbol; for(let i=0; i < ruta.length - 1; i+=2) { if (!temp[ruta[i]]) return temp; temp = temp[ruta[i]].hijos[ruta[i+1]]; } return temp; }
+        function cambiarPestana(el, id) { document.querySelectorAll('.pestana').forEach(p => p.classList.remove('activa')); el.classList.add('activa'); document.querySelectorAll('.teclado-grid').forEach(t => t.style.display = 'none'); document.getElementById(id).style.display = 'grid'; }
+
+        // ======= GRÁFICA INTERACTIVA =======
+        function dibujarGrafica(ecuacionPython, puntoX) {
+            let exprMathJS = ecuacionPython.replace(/\*\*/g, '^');
+            let x0 = parseFloat(puntoX);
+            let xValues = [], yValues = [], yTangente = [];
+
+            let h = 0.0001; let contexto = { e: Math.E, pi: Math.PI };
+            try {
+                let y0 = math.evaluate(exprMathJS, { ...contexto, x: x0 });
+                let y_plus = math.evaluate(exprMathJS, { ...contexto, x: x0 + h });
+                let y_minus = math.evaluate(exprMathJS, { ...contexto, x: x0 - h });
+                let m = (y_plus - y_minus) / (2 * h);
+
+                for(let i = -50; i <= 50; i += 0.1) {
+                    let px = x0 + i;
+                    xValues.push(px.toFixed(1));
+                    try { yValues.push(math.evaluate(exprMathJS, { ...contexto, x: px })); yTangente.push(m * (px - x0) + y0); }
+                    catch(e) { yValues.push(null); yTangente.push(null); }
+                }
+
+                document.getElementById('zona-grafica-container').style.display = 'block';
+
+                if(window.miGrafico) window.miGrafico.destroy();
+                const ctx = document.getElementById('grafica-canvas').getContext('2d');
+                window.miGrafico = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels: xValues, datasets: [ { label: 'f(x)', data: yValues, borderColor: '#00d2d3', borderWidth: 2.5, fill: false, pointRadius: 0, tension: 0.2 }, { label: 'Tangente', data: yTangente, borderColor: '#ee5253', borderWidth: 2, borderDash: [5, 5], fill: false, pointRadius: 0 } ] },
+                    options: { responsive: true, maintainAspectRatio: false, animation: { duration: 0 }, scales: { x: { min: 450, max: 550, ticks: { color: '#a4b0be', maxTicksLimit: 8 }, grid: { color: '#3c4043' } }, y: { ticks: { color: '#a4b0be' }, grid: { color: '#3c4043' } } }, plugins: { legend: { display: false }, zoom: { pan: { enabled: true, mode: 'xy' }, zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'xy' } } } }
+                });
+            } catch (e) { console.log("Gráfica no disponible"); }
+        }
+
+        // ======= PROCESADOR INTELIGENTE DE PASOS (PYTHON A HTML) =======
+        function procesarPasoDesdePython(paso) {
+            // Si tu función proceso() devuelve un diccionario o JSON
+            if (typeof paso === 'object' && paso !== null) {
+                // Buscamos propiedades comunes que podrías haber usado en tu código Python
+                let titulo = paso.regla || paso.titulo || paso.nombre || paso.accion || "Paso aplicado";
+                let ecuacion = paso.ecuacion || paso.expresion || paso.resultado || paso.latex || "";
+
+                return `
+                <div class="paso-card">
+                    <div class="paso-titulo">${titulo}</div>
+                    <hr class="paso-separador-card">
+                    <div class="paso-ecuacion">\\[ ${ecuacion} \\]</div>
+                </div>`;
+            }
+            // Si tu función proceso() devuelve simples strings (texto plano)
+            else if (typeof paso === 'string') {
+                return `
+                <div class="paso-card">
+                    <div class="paso-titulo">Operación</div>
+                    <hr class="paso-separador-card">
+                    <div class="paso-ecuacion">\\[ ${paso} \\]</div>
+                </div>`;
+            }
+            return "";
+        }
+
+        // ======= COMUNICACIÓN CON PYTHON =======
+        async function enviarAPython() {
+            if(datos.length === 0) return;
+            const query = renderizarEstructura(datos, [], true);
+            const resMain = document.getElementById('caja-resultado-principal');
+            const resTang = document.getElementById('caja-resultado-tangente');
+
+            let puntoXVal = 1.0;
+            try { puntoXVal = math.evaluate(document.getElementById('input-punto').value); if(isNaN(puntoXVal)) puntoXVal = 1.0; } catch(e) {}
+
+            lastEcuacionPython = query;
+            resMain.style.display = 'block'; resMain.innerHTML = '<span style="color:#fff">Calculando...</span>';
+            resTang.style.display = 'none';
+
+            try {
+                const bodyDatos = { ecuacion: query, punto_x: parseFloat(puntoXVal) };
+                const respuesta = await fetch('https://calculadorad-derivadas.onrender.com/conectar', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(bodyDatos) });
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    // Resultados de Ecuaciones
+                    resMain.innerHTML = `\\[ f'(x) = ${result.resultado} \\]`;
+                    if (result.tangente) {
+                        resTang.style.display = 'block';
+                        let p = parseFloat(result.punto_evaluado);
+                        resTang.innerHTML = `<div style="font-size:14px; color:#a4b0be; margin-bottom:5px;">Recta tangente en \\( x = ${p} \\):</div>\\[ y = ${result.tangente} \\]`;
+
+                        // Generar UI Dinámica de la Tangente (Ya que el backend no envía pasos de la tangente)
+                        let htmlTangente = `
+                        <div class="paso-card" style="border-left-color: #ee5253;">
+                            <div class="paso-titulo" style="color: #ee5253;">1. Evaluar punto en f(x)</div>
+                            <div class="paso-ecuacion">\\[ x_0 = ${p} \\]</div>
+                        </div>
+                        <div class="paso-card" style="border-left-color: #ee5253;">
+                            <div class="paso-titulo" style="color: #ee5253;">2. Pendiente usando f'(x)</div>
+                            <div class="paso-ecuacion">\\[ m = f'(${p}) \\]</div>
+                        </div>
+                        <div class="paso-card" style="border-left-color: #ee5253;">
+                            <div class="paso-titulo" style="color: #ee5253;">3. Ecuación punto-pendiente</div>
+                            <div class="paso-ecuacion">\\[ y - y_0 = m(x - x_0) \\]</div>
+                            <hr class="paso-separador-card" style="border-top-color:#ee5253;">
+                            <div class="paso-ecuacion">\\[ y = ${result.tangente} \\]</div>
+                        </div>`;
+                        document.getElementById('pasos-tangente-container').innerHTML = htmlTangente;
+                    }
+                    if (window.MathJax) { MathJax.typesetPromise([resMain, resTang, document.getElementById('pasos-tangente-container')]); }
+                    dibujarGrafica(query, result.punto_evaluado);
+
+                    // Formatear pasos de derivación enviados por Python
+                    if (panelPasosAbierto && result.pasos && Array.isArray(result.pasos)) {
+                        let htmlDerivada = result.pasos.map(procesarPasoDesdePython).join('');
+                        document.getElementById('contenido-pasos-derivada').innerHTML = htmlDerivada;
+                        if (window.MathJax) MathJax.typesetPromise([document.getElementById('contenido-pasos-derivada')]);
+                    }
+
+                } else { resMain.innerHTML = `<span style="color:#ff6b6b; font-size:15px;">Error: ${result.detail}</span>`; }
+            } catch (e) { resMain.innerHTML = '<span style="color:#ff6b6b; font-size:15px;">Error de conexión con Python.</span>'; }
+        }
+
+        actualizarPantalla();
+    </script>
+</body>
+</html>
