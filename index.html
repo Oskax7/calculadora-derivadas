@@ -425,7 +425,7 @@
             try {
                 const bodyDatos = { ecuacion: query, punto_x: parseFloat(puntoXVal) };
                 const respuesta = await fetch('https://calculadorad-derivadas.onrender.com/conectar', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(bodyDatos) });
-                const result = await response.json();
+                const result = await respuesta.json();
 
                 if (result.status === 'success') {
                     // Resultados de Ecuaciones
