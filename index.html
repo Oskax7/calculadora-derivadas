@@ -12,8 +12,6 @@
             svg: { fontCache: 'global' }
         };
     </script>
-    <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
-    <script defer src="https://pyscript.net/latest/pyscript.js"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
@@ -90,7 +88,6 @@
                 </div>
 
                 <div id="teclado-base" class="teclado-grid">
-                    <!-- FIX: Se eliminó el botón Y, y el botón X ahora ocupa el doble de espacio (span 2) -->
                     <button class="btn-variable" onclick="insertarTexto('x')" style="grid-column: span 2;">x</button>
                     <button class="btn-accion" onclick="insertarTexto('(')">(</button>
                     <button class="btn-accion" onclick="insertarTexto(')')">)</button>
@@ -212,7 +209,7 @@
             else if (/^[0-9xye\.\+\-\*\/\(\)]$/.test(e.key) && e.key.length === 1) {
                 e.preventDefault();
                 if(e.key === '/') insertarEstructura('fraccion');
-                else if (e.key === 'y') return; // Bloquear ingreso de Y por teclado físico
+                else if (e.key === 'y') return;
                 else insertarTexto(e.key);
             }
         });
@@ -279,15 +276,18 @@
                 if (nodo.tipo === 'texto') {
                     let val = nodo.valor.replace(/#/g, '');
                     let limpio = val.replace(/\\(pi|e|sin|cos|tan|asin|acos|atan|ln|sec|csc|cot)/g, match => match.substring(1));
-                    if (paraServidor) { if (val === 'ln(') latex += 'log('; else latex += limpio; }
-                    else {
+
+                    if (paraServidor) {
+                        if (val === 'ln(') latex += 'log(';
+                        else if (val === 'e') latex += 'E';
+                        else latex += limpio;
+                    } else {
                         const m = {'pi': '\\pi', 'e': '\\mathrm{e}', 'ln(': '\\ln(', 'sin(': '\\sin(', 'cos(': '\\cos(', 'tan(': '\\tan(', 'sec(': '\\sec(', 'csc(': '\\csc(', 'cot(': '\\cot(', 'asin(': '\\arcsin(', 'acos(': '\\arccos(', 'atan(': '\\arctan('};
                         latex += m[val] || val;
                     }
-                // FIX: El renderizado para el servidor ahora usa potencias fraccionarias para la raíz (evita bug de SymPy con recursion)
                 } else if (nodo.tipo === 'raiz') {
                     let c = renderizarEstructura(nodo.hijos[0]||[], [...rutaNodo, 0], paraServidor);
-                    latex += paraServidor ? `(${c||'0'})**(1/2)` : `\\sqrt{${c||"\\,"}}`;
+                    latex += paraServidor ? `sqrt(${c||'0'})` : `\\sqrt{${c||"\\,"}}`;
                 } else if (nodo.tipo === 'raizn') {
                     let ind = renderizarEstructura(nodo.hijos[0]||[], [...rutaNodo, 0], paraServidor);
                     let c = renderizarEstructura(nodo.hijos[1]||[], [...rutaNodo, 1], paraServidor);
@@ -349,7 +349,6 @@
             } catch (e) { console.log("Gráfica no disponible", e); }
         }
 
-        // FIX: Se mejoró el procesador de pasos para que "sobreviva" a cualquier estructura que devuelva Python
         function procesarPasoDesdePython(paso, index) {
             if (typeof paso === 'string') {
                 return `
@@ -359,25 +358,20 @@
                     <div class="paso-ecuacion">\\[ ${paso} \\]</div>
                 </div>`;
             } else if (typeof paso === 'object' && paso !== null) {
-                let titulo = paso.regla || paso.titulo || paso.nombre || paso.accion || `Paso ${index + 1}`;
-                let ecuacion = paso.ecuacion || paso.expresion || paso.resultado || paso.latex;
+                let titulo = paso.regla || paso.titulo || paso.nombre || paso.accion || paso.step || `Paso ${index + 1}`;
+                let ecuacion = paso.ecuacion || paso.expresion || paso.resultado || paso.latex || paso.expression || paso.result || "";
 
-                // Si el objeto no tiene llaves reconocibles, lo imprimimos "crudo" para que puedas depurar
-                if (!ecuacion && !paso.regla && !paso.titulo && !paso.latex) {
-                    return `
-                    <div class="paso-card">
-                        <div class="paso-titulo">Detalle del Paso ${index + 1}</div>
-                        <div style="color:#ffffff; font-size:14px; text-align:left; overflow-x:auto;">
-                            <pre style="white-space: pre-wrap;">${JSON.stringify(paso, null, 2)}</pre>
-                        </div>
-                    </div>`;
+                if (!ecuacion) {
+                    let posibles = Object.values(paso).filter(v => typeof v === 'string' && (v.includes('x') || v.includes('\\') || v.includes('(')));
+                    if(posibles.length > 0) ecuacion = posibles[0];
+                    else ecuacion = JSON.stringify(paso);
                 }
 
                 return `
                 <div class="paso-card">
                     <div class="paso-titulo">${titulo}</div>
                     <hr class="paso-separador-card">
-                    <div class="paso-ecuacion">\\[ ${ecuacion || ''} \\]</div>
+                    <div class="paso-ecuacion">\\[ ${ecuacion} \\]</div>
                 </div>`;
             }
             return "";
@@ -399,8 +393,7 @@
             try {
                 const bodyDatos = { ecuacion: query, punto_x: parseFloat(puntoXVal) };
 
-                // FIX: Apuntamos al dominio de Render tal como solicitaste
-                const response = await fetch('https://calculadorad-derivadas.onrender.com/conectar', {
+                const response = await fetch('https://calculadora-derivadas.onrender.com/conectar', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(bodyDatos)
