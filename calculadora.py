@@ -1,4 +1,4 @@
-from sympy import symbols, sin, cos, log, pi, E, latex, Expr, Symbol, Add, Mul, Pow, Integer, exp, tan, sec, csc, Float, Number, cot, asin, acos, atan, acot, asec, acsc, simplify, solve, Eq, parse_expr
+from sympy import symbols, sin, cos, log, pi, E, latex, Expr, Symbol, Add, Mul, Pow, Integer, exp, tan, sec, csc, Float, Number, Rational, cot, asin, acos, atan, acot, asec, acsc, simplify, solve, Eq, parse_expr
 from sympy.functions.elementary.trigonometric import TrigonometricFunction, InverseTrigonometricFunction
 
 x = symbols("x")
@@ -7,25 +7,25 @@ def proceso(funcionn):
     pasos = []
 
     def derivar(funcionn):
-        if isinstance(funcionn, (int, Float, Integer, Number)) or funcionn == E or funcionn == pi:
+        if isinstance(funcionn, (int, float, Number)) or funcionn == E or funcionn == pi:
             pasos.append({"tipo": "paso",
                           "regla": "Regla de la constante",
                           "explicacion": f"El numero {latex(funcionn)}, se convierte en 0",
                           "original": latex(funcionn),
                           "derivada": "0"})
-            return 0
+            return Integer(0)
         elif isinstance(funcionn, Symbol):
             pasos.append({"tipo": "paso",
                           "regla": "Regla de la variable",
                           "explicacion": f"Las variables sin coeficientes, se convierten en 1",
                           "original": latex(funcionn),
                           "derivada": "1"})
-            return 1
+            return Integer(1)
         elif isinstance(funcionn, Pow):
             argumentos = list(funcionn.args)
             base = argumentos[0]
             exponente = argumentos[1]
-            if isinstance(exponente, (Integer, int, Float)) and isinstance(base, Symbol):
+            if isinstance(exponente, (int, float, Number)) and isinstance(base, Symbol):
                 nuevo_exponente = exponente - 1
                 resultado = (exponente * (base**nuevo_exponente))
                 pasos.append({"tipo": "paso",
@@ -34,7 +34,7 @@ def proceso(funcionn):
                               "original": latex(funcionn),
                               "derivada": latex(resultado)})
                 return resultado
-            elif isinstance(exponente, (Integer, int, Float)):
+            elif isinstance(exponente, (int, float, Number)):
                 pasos.append({"tipo": "inicio",
                               "regla": "Regla de la potencia con cadena",
                               "explicacion": f"Como la base {latex(base)} es una funcion, a esta se le resta 1 al indice, se baja este mismo a multiplicar y se aplica regla de la cadena",
@@ -101,7 +101,7 @@ def proceso(funcionn):
         argumentos = list(potencia.args)
         base = argumentos[0]
         exponente = argumentos[1]
-        if isinstance(exponente, (Integer, int, Float)):
+        if isinstance(exponente, (int, float, Number)):
             nuevo_exponente = exponente - 1
             cadena = derivar(base)
             resultado = (exponente * (base**nuevo_exponente))*cadena
@@ -155,16 +155,16 @@ def proceso(funcionn):
         argumento = list(logaritmo.args)
         exponente = argumento[0]
         cadena = derivar(exponente)
-        if not isinstance(exponente, (Integer, int, Float)):
+        if not isinstance(exponente, (int, float, Number)):
             resultado = (1/exponente)*cadena
             return resultado
         else:
-            return 0
+            return Integer(0)
 
     def derivar_trigonometrica(funcion):
         pasos.append({"tipo": "inicio",
                       "regla": "Regla de función trigonométrica",
-                      "explicacion": f"Se deriva la función trigonométrica {latex(funcion)} aplicando la regla correspondiente y multiplicando por la derivada interna (regla de la cadena)",
+                      "explicacion": f"Se deriva la función trigonométrica {latex(funcion)} aplicando la regla correspondiente y multiplicando por la derivada interna",
                       "original": latex(funcion)})
         argumento = list(funcion.args)
         interno = argumento[0]
@@ -205,7 +205,7 @@ def proceso(funcionn):
     def derivar_arco_trigonometrica(funcion):
         pasos.append({"tipo": "inicio",
                       "regla": "Regla de función arcotrigonométrica",
-                      "explicacion": f"Se deriva la función arcotrigonométrica {latex(funcion)} aplicando la regla correspondiente y multiplicando por la derivada interna (regla de la cadena)",
+                      "explicacion": f"Se deriva la función arcotrigonométrica {latex(funcion)} aplicando la regla correspondiente y multiplicando por la derivada interna",
                       "original": latex(funcion)})
         argumento = list(funcion.args)
         interno = argumento[0]
@@ -254,7 +254,7 @@ def proceso(funcionn):
 
 def recta_tangente(funcion, punto_en_x):
     funcion_derivada = proceso(funcion)[0]
-    pendiente = funcion_derivada.subs(x, punto_en_x).evalf()
-    punto_en_y = funcion.subs(x, punto_en_x).evalf()
-    b = punto_en_y-(pendiente*punto_en_x)
-    return pendiente*x + b
+    pendiente = round(funcion_derivada.subs(x, punto_en_x).evalf(), 2)
+    punto_en_y = round(funcion.subs(x, punto_en_x).evalf(), 2)
+    b = round(punto_en_y - (pendiente * punto_en_x), 2)
+    return pendiente * x + b
