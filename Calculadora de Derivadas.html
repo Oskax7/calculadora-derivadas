@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora Derivadas</title>
+    <link rel="stylesheet" href="diseño.css">
+</head>
+
+<body>
+
+    <div class="teclado-container">
+
+        <div tabindex="0" id="pantalla" data-placeholder="Escribe tu función aquí...">
+        </div>
+
+        <div class="pestanas">
+            <div class="pestana activa" onclick="cambiarPestana(this, 'teclado-123')">123</div>
+            <div class="pestana" onclick="cambiarPestana(this, 'teclado-fx')">f(x)</div>
+            <div class="pestana" onclick="cambiarPestana(this, 'teclado-abc')">ABC</div>
+        </div>
+
+        <div id="contenedor-teclados">
+
+            <div id="teclado-123" class="cuadrante-botones">
+                <button class="btn-variable" onclick="insertarTexto('x')">x</button>
+                <button class="btn-variable" onclick="insertarTexto('y')">y</button>
+                <button class="btn-variable" onclick="insertarTexto('pi')">π</button>
+                <button class="btn-variable" onclick="insertarTexto('e')">e</button>
+                <button onclick="insertarTexto('7')">7</button>
+                <button onclick="insertarTexto('8')">8</button>
+                <button onclick="insertarTexto('9')">9</button>
+                <button onclick="insertarTexto('*')">*</button>
+                <button onclick="insertarTexto('/')">÷</button>
+
+                <button onclick="insertarEstructura('potencia2')"><span>⬚<sup>2</sup></span></button>
+                <button onclick="insertarEstructura('potencia')"><span>⬚<sup>⬚</sup></span></button>
+                <button onclick="insertarTexto('√(')">√⬚</button>
+                <button onclick="insertarTexto('|'); insertarTexto('|'); moverCursor('izq');">|⬚|</button>
+                <button onclick="insertarTexto('4')">4</button>
+                <button onclick="insertarTexto('5')">5</button>
+                <button onclick="insertarTexto('6')">6</button>
+                <button onclick="insertarTexto('+')">+</button>
+                <button onclick="insertarTexto('-')">-</button>
+
+                <button onclick="insertarTexto('ln(')">ln</button>
+                <button onclick="insertarEstructura('logsub')">log<sub>⬚</sub></button>
+                <button onclick="insertarEstructura('ex')">e<sup>x</sup></button>
+                <button onclick="insertarEstructura('elibre')">e<sup>⬚</sup></button>
+                <button onclick="insertarTexto('1')">1</button>
+                <button onclick="insertarTexto('2')">2</button>
+                <button onclick="insertarTexto('3')">3</button>
+                <button class="btn-funcion" onclick="ejecutarBorrado()">⌫</button>
+
+                <button onclick="insertarTexto('(')">(</button>
+                <button onclick="insertarTexto(')')">)</button>
+                <button onclick="insertarTexto('0')">0</button>
+                <button onclick="insertarTexto('.')">.</button>
+                <button class="btn-funcion" onclick="moverCursor('izq')">⭠</button>
+                <button class="btn-funcion" onclick="moverCursor('arr')">⭡</button>
+                <button class="btn-funcion" onclick="moverCursor('der')">⭢</button>
+                <button class="btn-funcion" onclick="moverCursor('aba')">⭣</button>
+                <button id="btn-enter" class="btn-funcion" onclick="enviarAPython()">↵</button>
+            </div>
+
+            <div id="teclado-fx" class="cuadrante-botones" style="display: none;">
+                <button onclick="insertarTexto('sen(')">sen</button>
+                <button onclick="insertarTexto('cos(')">cos</button>
+                <button onclick="insertarTexto('tan(')">tan</button>
+                <button onclick="insertarTexto('arcsen(')">arcsen</button>
+                <button onclick="insertarTexto('arccos(')">arccos</button>
+                <button onclick="insertarTexto('arctan(')">arctan</button>
+                <button onclick="insertarTexto('i')">i</button>
+                <button class="btn-funcion" onclick="ejecutarBorrado()">⌫</button>
+                <button class="btn-funcion" onclick="moverCursor('izq')">⭠</button>
+                <button class="btn-funcion" onclick="moverCursor('arr')">⭡</button>
+                <button class="btn-funcion" onclick="moverCursor('der')">⭢</button>
+                <button class="btn-funcion" onclick="moverCursor('aba')">⭣</button>
+                <button id="btn-enter" class="btn-funcion" onclick="enviarAPython()">↵</button>
+            </div>
+
+            <div id="teclado-abc" class="cuadrante-botones" style="display: none;">
+                <button class="btn-variable" onclick="insertarTexto('a')">a</button>
+                <button class="btn-variable" onclick="insertarTexto('b')">b</button>
+                <button class="btn-variable" onclick="insertarTexto('c')">c</button>
+                <button class="btn-variable" onclick="insertarTexto('d')">d</button>
+                <button class="btn-variable" onclick="insertarTexto('e')">e</button>
+                <button class="btn-variable" onclick="insertarTexto('f')">f</button>
+                <button class="btn-variable" onclick="insertarTexto('g')">g</button>
+                <button class="btn-variable" onclick="insertarTexto('h')">h</button>
+                <button class="btn-variable" onclick="insertarTexto('i')">i</button>
+                
+                <button class="btn-variable" onclick="insertarTexto('j')">j</button>
+                <button class="btn-variable" onclick="insertarTexto('k')">k</button>
+                <button class="btn-variable" onclick="insertarTexto('m')">m</button>
+                <button class="btn-variable" onclick="insertarTexto('n')">n</button>
+                <button class="btn-variable" onclick="insertarTexto('o')">o</button>
+                <button class="btn-variable" onclick="insertarTexto('p')">p</button>
+                <button class="btn-variable" onclick="insertarTexto('q')">q</button>
+                <button class="btn-variable" onclick="insertarTexto('r')">r</button>
+                <button class="btn-variable" onclick="insertarTexto('s')">s</button>
+                
+                <button class="btn-variable" onclick="insertarTexto('t')">t</button>
+                <button class="btn-variable" onclick="insertarTexto('u')">u</button>
+                <button class="btn-variable" onclick="insertarTexto('v')">v</button>
+                <button class="btn-variable" onclick="insertarTexto('w')">w</button>
+                <button class="btn-variable" onclick="insertarTexto('x')">x</button>
+                <button class="btn-variable" onclick="insertarTexto('y')">y</button>
+                <button class="btn-variable" onclick="insertarTexto('z')">z</button>
+                <button class="btn-funcion" onclick="ejecutarBorrado()">⌫</button>
+                <button class="btn-funcion" onclick="moverCursor('izq')">⭠</button>
+                
+                <button class="btn-funcion" onclick="moverCursor('arr')">⭡</button>
+                <button class="btn-funcion" onclick="moverCursor('der')">⭢</button>
+                <button class="btn-funcion" onclick="moverCursor('aba')">⭣</button>
+                <button id="btn-enter" class="btn-funcion" onclick="enviarAPython()">↵</button>
+            </div>
+        </div>
+
+        <div id="zona-resultado"></div>
+
+        <div id="zona-grafica-container">
+            <div class="canvas-wrapper">
+                <canvas id="graficaDerivadas"></canvas>
+            </div>
+            <div class="controles-grafica">
+                <button id="btn-toggle-f" class="btn-toggle-capa activo-f" onclick="alternarCapa(0)">Función f(x)</button>
+                <button id="btn-toggle-df" class="btn-toggle-capa activo-df" onclick="alternarCapa(1)">Derivada f'(x)</button>
+                <button id></button></div> 
+            <div id="zona-resultado"></div>
+
+        <div id="zona-grafica-container">
+            <div class="canvas-wrapper">
+                <canvas id="graficaDerivadas"></canvas>
+            </div>
+            <div class="controles-grafica">
+                <button id="btn-toggle-f" class="btn-toggle-capa activo-f" onclick="alternarCapa(0)">Función f(x)</button>
+                <button id="btn-toggle-df" class="btn-toggle-capa activo-df" onclick="alternarCapa(1)">Derivada f'(x)</button>
+                <button id="btn-toggle-puntos" class="btn-toggle-capa activo-pts" onclick="alternarCapa(2)">Puntos Críticos</button>
+            </div>
+        </div>
+
+    <script src="algoritmo.js"></script>
+</body>
+</html>
