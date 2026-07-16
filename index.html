@@ -393,7 +393,7 @@
             try {
                 const bodyDatos = { ecuacion: query, punto_x: parseFloat(puntoXVal) };
 
-                const response = await fetch('https://calculadorad-derivadas.onrender.com/conectar', {
+                const response = await fetch('https://calculadora-derivadas.onrender.com/conectar', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(bodyDatos)
